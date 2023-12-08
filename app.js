@@ -105,27 +105,37 @@ function SampleEval() {
 }
 
 function getMaxIndexes(Array) {
-    let Max1 = -1;
-    let Max2 = -1;
-    const TopIndexes = [];
+    // let Max1 = -1;
+    // let Max2 = -1;
+    // const TopIndexes = [];
+    //
+    // for (let i = 0; i < Array.length; i++) {
+    //     if (Array[i] > Max1) {
+    //         Max1 = Array[i]
+    //         TopIndexes[0] = i;
+    //     } else if (Array[i] > Max2) {
+    //         Max2 = Array[i];
+    //         TopIndexes[1] = i;
+    //     }
+    // }
+    //
+    //
+    //
+    // for (let i = 0; i < Array.length; i++) {
+    //     if (Array[i] === Max2 && i !== TopIndexes[0] && i !== TopIndexes[1]) {
+    //         TopIndexes.push(i)
+    //     }
+    // }
+    let SizeSum = 0;
+    let WeightSum = 0;
 
-    for (let i = 0; i < Array.length; i++) {
-        if (Array[i] > Max1) {
-            Max1 = Array[i]
-            TopIndexes[0] = i;
-        } else if (Array[i] > Max2) {
-            Max2 = Array[i];
-            TopIndexes[1] = i;
-        }
+    for (let i = 0; i < FullDetailEval.length; i++) {
+        SizeSum += FullDetailEval.size;
+        WeightSum += FullDetailEval.size;
     }
 
-
-
-    for (let i = 0; i < Array.length; i++) {
-        if (Array[i] === Max2 && i !== TopIndexes[0] && i !== TopIndexes[1]) {
-            TopIndexes.push(i)
-        }
-    }
+    let SizeThreshold = SizeSum / FullDetailEval.length;
+    let WeightThreshold = WeightSum / FullDetailEval.length;
 
     return TopIndexes
 }

@@ -1,48 +1,21 @@
 const csv = require('csvtojson');
 const csvFilePath = './data.csv';
+const {promisify} = require('util');
+const sleep = promisify(setTimeout);
 
 // Constraints :
 const MaxWeight = 220;
 const MaxSize = 2;
 let Items = [];
-const NumberOfGenerations = 30;
-const NumberOfSamples = 20;
+const NumberOfGenerations = 10000;
+const NumberOfSamples = 200;
+const SizeThresh = 6
+const WeightThresh = 660
+const FixedThresholdMode = false;
+const MutationRate = 0.9;
 let SampleEvaluation = [];
 let FullDetailEval = [];
 const Samples = [];
-const TestItems = [
-    0,
-    1,
-    1,
-    0,
-    0,
-    0,
-    1,
-    1,
-    0,
-    0,
-    1,
-    0,
-    0,
-    1,
-    1,
-    0,
-    1,
-    0,
-    1,
-    0,
-    0,
-    1,
-    0,
-    1,
-    1,
-    0,
-    0,
-    0,
-    0,
-]
-
-
 
 // Generate Random Array For All The Items In The Vault
 const getRandomInt = max => Math.floor(Math.random() * max);
@@ -105,39 +78,93 @@ function SampleEval() {
 }
 
 function getMaxIndexes(Array) {
-    // let Max1 = -1;
-    // let Max2 = -1;
-    // const TopIndexes = [];
-    //
-    // for (let i = 0; i < Array.length; i++) {
-    //     if (Array[i] > Max1) {
-    //         Max1 = Array[i]
-    //         TopIndexes[0] = i;
-    //     } else if (Array[i] > Max2) {
-    //         Max2 = Array[i];
-    //         TopIndexes[1] = i;
-    //     }
-    // }
-    //
-    //
-    //
-    // for (let i = 0; i < Array.length; i++) {
-    //     if (Array[i] === Max2 && i !== TopIndexes[0] && i !== TopIndexes[1]) {
-    //         TopIndexes.push(i)
-    //     }
-    // }
-    let SizeSum = 0;
-    let WeightSum = 0;
+    let BadIndexes = [];
+    let WeightDifferenceArray = [];
+    let SizeDifferenceArray = [];
+    let SmallSizeDifference = [];
+    let SmallWeightDifference = [];
+    let AVGDiff = [];
+    for (let i = 0; i < Array.length; i++) {
+        WeightDifferenceArray.push(Array[i].weight - MaxWeight)
+        SizeDifferenceArray.push(Array[i].size - MaxSize)
+    }
+    let WDA = JSON.parse(JSON.stringify(WeightDifferenceArray))
+    let SDA = JSON.parse(JSON.stringify(SizeDifferenceArray))
 
-    for (let i = 0; i < FullDetailEval.length; i++) {
-        SizeSum += FullDetailEval.size;
-        WeightSum += FullDetailEval.size;
+    let BiggestWeightDiff = WDA.sort(function (a, b) {  return b - a;  })[0];
+    let BiggestSizeDiff = SDA.sort(function (a, b) {  return b - a;  })[0];
+
+    for (let i = 0; i < Array.length; i++) {
+        SmallSizeDifference.push(parseFloat((WeightDifferenceArray[i] / BiggestWeightDiff).toFixed(2)))
+        SmallWeightDifference.push(parseFloat((SizeDifferenceArray[i] / BiggestSizeDiff).toFixed(2)))
     }
 
-    let SizeThreshold = SizeSum / FullDetailEval.length;
-    let WeightThreshold = WeightSum / FullDetailEval.length;
+    for (let i = 0; i < Array.length; i++) {
+        AVGDiff.push(parseFloat(((SmallSizeDifference[i] + SmallWeightDifference[i]) / 2).toFixed(2)))
+    }
 
-    return TopIndexes
+    // console.log(SmallWeightDifference)
+    // console.log(SmallSizeDifference)
+    // console.log(AVGDiff)
+
+
+    let Max1 = -1;
+    let Max2 = -1;
+
+    for (let i = 0; i < AVGDiff.length; i++) {
+        if (AVGDiff[i] > Max1) {
+            Max1 = AVGDiff[i]
+            BadIndexes[0] = i;
+        } else if (AVGDiff[i] > Max2) {
+            Max2 = AVGDiff[i];
+            BadIndexes[1] = i;
+        }
+    }
+
+
+
+    for (let i = 0; i < AVGDiff.length; i++) {
+        if (AVGDiff[i] === Max2 && i !== BadIndexes[0] && i !== BadIndexes[1]) {
+            BadIndexes.push(i)
+        }
+    }
+
+
+    // const BadIndexes = [];
+    //
+    // if (FixedThresholdMode === true) {
+    //     for (let i = 0; i < Array.length; i++) {
+    //         if (Array[i].size > SizeThresh && Array[i].weight > WeightThresh) {
+    //             // console.log(Array[i])
+    //             BadIndexes.push(i)
+    //         }
+    //     }
+    // }
+    //
+    // if (FixedThresholdMode === false) {
+    //     let SizeSum = 0;
+    //     let WeightSum = 0;
+    //     for (let i = 0; i < Array.length; i++) {
+    //         SizeSum += Array[i].size;
+    //         WeightSum += Array[i].weight;
+    //     }
+    //
+    //     let SizeThreshold = SizeSum / Array.length;
+    //     let WeightThreshold = WeightSum / Array.length;
+    //
+    //     for (let i = 0; i < Array.length; i++) {
+    //         if (Array[i].size > SizeThreshold && Array[i].weight > WeightThreshold) {
+    //             BadIndexes.push(i)
+    //         }
+    //     }
+    //
+    //     console.log('ST ',SizeThreshold)
+    //     console.log('WT ',WeightThreshold)
+    // }
+
+
+
+    return BadIndexes
 }
 
 // Chromosome Selector
@@ -146,12 +173,17 @@ function ChromosomeSelector(Array) {
         return [Array[0], Array[1]]
     }
 
-    // Lines Below Avoid Returning Similar Indexes
+    if (Array.length < 2) {
+        return
+    }
+
     const FirstParentIndex = Math.floor(Math.random() * Array.length)
     let SecondParentIndex;
     let isAllowed = false;
 
+    // Lines Below Avoid Returning Similar Indexes
     while (!isAllowed) {
+        // console.log(Array)
         // console.log(isAllowed)
         SecondParentIndex = Math.floor(Math.random() * Array.length)
         if (SecondParentIndex !== FirstParentIndex) {
@@ -161,6 +193,7 @@ function ChromosomeSelector(Array) {
 
     return [Array[FirstParentIndex], Array[SecondParentIndex]]
 }
+
 
 // Crossover , Gets The Best 2 Selected Chromosomes And Then Performs Crossover Between Them
 function Crossover (SampleIndex1, SampleIndex2) {
@@ -180,8 +213,15 @@ function Crossover (SampleIndex1, SampleIndex2) {
     // console.log(JSON.stringify(Array1_1) ,JSON.stringify(Array1_2))
     // console.log(JSON.stringify(Array2_1) ,JSON.stringify(Array2_2))
 
-    const Child1 = Array1_1.concat(Array2_2);
-    const Child2 = Array2_1.concat(Array1_2);
+    let Child1 = Array1_1.concat(Array2_2);
+    let Child2 = Array2_1.concat(Array1_2);
+
+    if (Math.random() < MutationRate) {
+        Child1 = Mutate(Child1)
+    }
+    if (Math.random() < MutationRate) {
+        Child2 = Mutate(Child2)
+    }
     // console.log('----------------------')
     //
     // console.log(JSON.stringify(Child1))
@@ -192,24 +232,63 @@ function Crossover (SampleIndex1, SampleIndex2) {
     return {Child1, Child2}
 }
 
+function Mutate (Array) {
+    const MutationPoint = Math.floor(Math.random() * Array.length);
+    if (Array[MutationPoint] === 0) {
+        Array[MutationPoint] = 1;
+    } else {
+        Array[MutationPoint] = 0;
+    }
+
+    return Array;
+}
+
+function LogAverages(Array) {
+        let SizeSum = 0;
+        let WeightSum = 0;
+        for (let i = 0; i < Array.length; i++) {
+            SizeSum += Array[i].size;
+            WeightSum += Array[i].weight;
+        }
+
+        let SizeThreshold = SizeSum / Array.length;
+        let WeightThreshold = WeightSum / Array.length;
+
+        console.log('Size AVG :  ', parseFloat(SizeThreshold.toFixed(2)))
+        console.log('Weight AVG : ', parseFloat(WeightThreshold.toFixed(2)))
+}
+
 // Main Function To Run The Program
 async function main() {
     await loadJson() // Load CSV Data Into Project
     createPopulation(); // Create A List Called Samples, Each List Index Contains A List Of Selections Of Items
+    SampleEval() // Evaluate The Samples Array And Their Values
+
+    // console.log(FullDetailEval)
 
     for (let i = 0 ; i < NumberOfGenerations; i++) {
         SampleEval() // Evaluate The Samples Array And Their Values
-        const SelectedChromosomes = ChromosomeSelector(getMaxIndexes(SampleEvaluation)) // Select 2 Samples From T
-        // console.log(SelectedChromosomes)
-        Samples[SelectedChromosomes[0]] = Crossover(SelectedChromosomes[0], SelectedChromosomes[1]).Child1
-        Samples[SelectedChromosomes[1]] = Crossover(SelectedChromosomes[0], SelectedChromosomes[1]).Child2
+        LogAverages(FullDetailEval)
+        console.log('Generation : ' ,i + 1)
+        const SelectedChromosomes = ChromosomeSelector(getMaxIndexes(FullDetailEval)) // Select 2 Samples From The Worst Evaluations
+        if (SelectedChromosomes) {
+            if (SelectedChromosomes.length >= 2) {
+                Samples[SelectedChromosomes[0]] = Crossover(SelectedChromosomes[0], SelectedChromosomes[1]).Child1
+                Samples[SelectedChromosomes[1]] = Crossover(SelectedChromosomes[0], SelectedChromosomes[1]).Child2
+            }
+        }
+        // await sleep(300)
+        // console.log('Generation : ', i)
     }
+    // console.log(FullDetailEval)
+    //
+    // console.log(SampleEvaluation)
 
-    console.log(FullDetailEval)
 
-    for (let i = 0; i < SampleEvaluation; i++) {
-        if (SampleEvaluation[i] !== 0) {
-            console.log(SampleEvaluation[i])
+    for (let i = 0; i < SampleEvaluation.length; i++) {
+        if (SampleEvaluation[i] > 0) {
+            console.log(FullDetailEval[i])
+            console.log(Samples[i])
         }
     }
 

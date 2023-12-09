@@ -7,16 +7,16 @@ const sleep = promisify(setTimeout);
 const MaxWeight = 220;
 const MaxSize = 2;
 let Items = [];
-const NumberOfGenerations = 10000;
+const NumberOfGenerations = 300;
 const NumberOfSamples = 200;
 const SizeThresh = 6
 const WeightThresh = 660
 const FixedThresholdMode = false;
-const MutationRate = 0.9;
+const MutationRate = 0.2;
 let SampleEvaluation = [];
 let FullDetailEval = [];
 const Samples = [];
-
+let ForbidIndexes = [];
 // Generate Random Array For All The Items In The Vault
 const getRandomInt = max => Math.floor(Math.random() * max);
 
@@ -78,6 +78,7 @@ function SampleEval() {
 }
 
 function getMaxIndexes(Array) {
+
     let BadIndexes = [];
     let WeightDifferenceArray = [];
     let SizeDifferenceArray = [];
@@ -258,6 +259,108 @@ function LogAverages(Array) {
         console.log('Weight AVG : ', parseFloat(WeightThreshold.toFixed(2)))
 }
 
+
+function TwoWorstSelector(Array) {
+    let WorstIndexes = [];
+
+    let WeightDifferenceArray = [];
+    let SizeDifferenceArray = [];
+    let SmallSizeDifference = [];
+    let SmallWeightDifference = [];
+    let AVGDiff = [];
+    for (let i = 0; i < Array.length; i++) {
+        if (Array[i].size <= MaxSize && Array[i].weight <= MaxWeight && !(ForbidIndexes.includes(i))) {
+            ForbidIndexes.push(i)
+        }
+    }
+
+    for (let i = 0; i < Array.length; i++) {
+        WeightDifferenceArray.push(Array[i].weight - MaxWeight)
+        SizeDifferenceArray.push(Array[i].size - MaxSize)
+    }
+    let WDA = JSON.parse(JSON.stringify(WeightDifferenceArray))
+    let SDA = JSON.parse(JSON.stringify(SizeDifferenceArray))
+
+    let BiggestWeightDiff = WDA.sort(function (a, b) {  return b - a;  })[0];
+    let BiggestSizeDiff = SDA.sort(function (a, b) {  return b - a;  })[0];
+
+    for (let i = 0; i < Array.length; i++) {
+        SmallSizeDifference.push(parseFloat((WeightDifferenceArray[i] / BiggestWeightDiff).toFixed(2)))
+        SmallWeightDifference.push(parseFloat((SizeDifferenceArray[i] / BiggestSizeDiff).toFixed(2)))
+    }
+
+    for (let i = 0; i < Array.length; i++) {
+        AVGDiff.push(parseFloat(((SmallSizeDifference[i] + SmallWeightDifference[i]) / 2).toFixed(2)))
+    }
+
+    // console.log(SmallWeightDifference)
+    // console.log(SmallSizeDifference)
+    // console.log(AVGDiff)
+
+
+    let Max1 = -1;
+    let Max2 = -1;
+
+    for (let i = 0; i < AVGDiff.length; i++) {
+        if (AVGDiff[i] > Max1 && !(ForbidIndexes.includes(i))) {
+            Max1 = AVGDiff[i]
+            WorstIndexes[0] = i;
+        } else if (AVGDiff[i] > Max2 && !(ForbidIndexes.includes(i))) {
+            Max2 = AVGDiff[i];
+            WorstIndexes[1] = i;
+        }
+    }
+
+    return WorstIndexes
+}
+
+function TwoBestSelector(Array) {
+    let BestIndexes = [];
+    let WeightDifferenceArray = [];
+    let SizeDifferenceArray = [];
+    let SmallSizeDifference = [];
+    let SmallWeightDifference = [];
+    let AVGDiff = [];
+    for (let i = 0; i < Array.length; i++) {
+        WeightDifferenceArray.push(Array[i].weight - MaxWeight)
+        SizeDifferenceArray.push(Array[i].size - MaxSize)
+    }
+    let WDA = JSON.parse(JSON.stringify(WeightDifferenceArray))
+    let SDA = JSON.parse(JSON.stringify(SizeDifferenceArray))
+
+    let BiggestWeightDiff = WDA.sort(function (a, b) {  return b - a;  })[0];
+    let BiggestSizeDiff = SDA.sort(function (a, b) {  return b - a;  })[0];
+
+    for (let i = 0; i < Array.length; i++) {
+        SmallSizeDifference.push(parseFloat((WeightDifferenceArray[i] / BiggestWeightDiff).toFixed(2)))
+        SmallWeightDifference.push(parseFloat((SizeDifferenceArray[i] / BiggestSizeDiff).toFixed(2)))
+    }
+
+    for (let i = 0; i < Array.length; i++) {
+        AVGDiff.push(parseFloat(((SmallSizeDifference[i] + SmallWeightDifference[i]) / 2).toFixed(2)))
+    }
+
+    // console.log(SmallWeightDifference)
+    // console.log(SmallSizeDifference)
+    // console.log(AVGDiff)
+
+
+    let Min1 = Infinity;
+    let Min2 = Infinity;
+
+    for (let i = 0; i < AVGDiff.length; i++) {
+        if (AVGDiff[i] < Min1) {
+            Min1 = AVGDiff[i]
+            BestIndexes[0] = i;
+        } else if (AVGDiff[i] < Min2) {
+            Min2 = AVGDiff[i];
+            BestIndexes[1] = i;
+        }
+    }
+4
+    return BestIndexes
+}
+
 // Main Function To Run The Program
 async function main() {
     await loadJson() // Load CSV Data Into Project
@@ -268,13 +371,20 @@ async function main() {
 
     for (let i = 0 ; i < NumberOfGenerations; i++) {
         SampleEval() // Evaluate The Samples Array And Their Values
-        LogAverages(FullDetailEval)
+        // LogAverages(FullDetailEval)
         console.log('Generation : ' ,i + 1)
-        const SelectedChromosomes = ChromosomeSelector(getMaxIndexes(FullDetailEval)) // Select 2 Samples From The Worst Evaluations
+        // const SelectedChromosomes = ChromosomeSelector(getMaxIndexes(FullDetailEval)) // Select 2 Samples From The Worst Evaluations
+        const TwoBest = TwoBestSelector(FullDetailEval);
+        const TwoWorst = TwoWorstSelector(FullDetailEval);
+        // console.log(TwoBest)
+        // console.log(TwoWorst)
+        // const SelectedChromosomes = ChromosomeSelector([TwoBest[0], TwoWorst[0]])
+        const SelectedChromosomes = [TwoBest[0], TwoWorst[0]]
+        // console.log(SelectedChromosomes)
         if (SelectedChromosomes) {
             if (SelectedChromosomes.length >= 2) {
-                Samples[SelectedChromosomes[0]] = Crossover(SelectedChromosomes[0], SelectedChromosomes[1]).Child1
-                Samples[SelectedChromosomes[1]] = Crossover(SelectedChromosomes[0], SelectedChromosomes[1]).Child2
+                Samples[TwoWorst[0]] = Crossover(SelectedChromosomes[0], SelectedChromosomes[1]).Child1
+                Samples[TwoWorst[1]] = Crossover(SelectedChromosomes[0], SelectedChromosomes[1]).Child2
             }
         }
         // await sleep(300)
@@ -285,12 +395,28 @@ async function main() {
     // console.log(SampleEvaluation)
 
 
+    const AnswersArray = [];
     for (let i = 0; i < SampleEvaluation.length; i++) {
         if (SampleEvaluation[i] > 0) {
             console.log(FullDetailEval[i])
             console.log(Samples[i])
+            AnswersArray.push(FullDetailEval[i])
         }
     }
+
+
+    let Max = -1;
+    let MaxIndex = 0;
+
+    for (let i = 0; i < AnswersArray.length; i++) {
+        if (AnswersArray[i].value > Max) {
+            Max = AnswersArray[i].value
+            MaxIndex = i;
+        }
+    }
+
+    console.log(FullDetailEval[MaxIndex])
+
 
 
 }

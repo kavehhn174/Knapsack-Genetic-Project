@@ -17,6 +17,7 @@ let SampleEvaluation = [];
 let FullDetailEval = [];
 const Samples = [];
 let ForbidIndexes = [];
+
 // Generate Random Array For All The Items In The Vault
 const getRandomInt = max => Math.floor(Math.random() * max);
 
@@ -51,7 +52,7 @@ function calculateFitness(UsedItemsArray, Index) {
 }
 
 
-// Create Samples
+// Create Samples And Population
 
 function createPopulation() {
     for (let i = 0; i < NumberOfSamples; i++) {
@@ -66,174 +67,57 @@ function createPopulation() {
 // Sample Evaluation
 
 function SampleEval() {
-
+    // Evaluates The Samples And Checks How Much They Will Weight And Size
     const tempEval = [];
     for (let i = 0; i < Samples.length; i++) {
-        // console.log(Samples.length)
         tempEval.push(calculateFitness(Samples[i], i))
     }
 
     SampleEvaluation = tempEval;
 }
 
-function getMaxIndexes(Array) {
-
-    let BadIndexes = [];
-    let WeightDifferenceArray = [];
-    let SizeDifferenceArray = [];
-    let SmallSizeDifference = [];
-    let SmallWeightDifference = [];
-    let AVGDiff = [];
-    for (let i = 0; i < Array.length; i++) {
-        WeightDifferenceArray.push(Array[i].weight - MaxWeight)
-        SizeDifferenceArray.push(Array[i].size - MaxSize)
-    }
-    let WDA = JSON.parse(JSON.stringify(WeightDifferenceArray))
-    let SDA = JSON.parse(JSON.stringify(SizeDifferenceArray))
-
-    let BiggestWeightDiff = WDA.sort(function (a, b) {  return b - a;  })[0];
-    let BiggestSizeDiff = SDA.sort(function (a, b) {  return b - a;  })[0];
-
-    for (let i = 0; i < Array.length; i++) {
-        SmallSizeDifference.push(parseFloat((WeightDifferenceArray[i] / BiggestWeightDiff).toFixed(2)))
-        SmallWeightDifference.push(parseFloat((SizeDifferenceArray[i] / BiggestSizeDiff).toFixed(2)))
-    }
-
-    for (let i = 0; i < Array.length; i++) {
-        AVGDiff.push(parseFloat(((SmallSizeDifference[i] + SmallWeightDifference[i]) / 2).toFixed(2)))
-    }
-
-    // console.log(SmallWeightDifference)
-    // console.log(SmallSizeDifference)
-    // console.log(AVGDiff)
-
-
-    let Max1 = -1;
-    let Max2 = -1;
-
-    for (let i = 0; i < AVGDiff.length; i++) {
-        if (AVGDiff[i] > Max1) {
-            Max1 = AVGDiff[i]
-            BadIndexes[0] = i;
-        } else if (AVGDiff[i] > Max2) {
-            Max2 = AVGDiff[i];
-            BadIndexes[1] = i;
-        }
-    }
-
-
-
-    for (let i = 0; i < AVGDiff.length; i++) {
-        if (AVGDiff[i] === Max2 && i !== BadIndexes[0] && i !== BadIndexes[1]) {
-            BadIndexes.push(i)
-        }
-    }
-
-
-    // const BadIndexes = [];
-    //
-    // if (FixedThresholdMode === true) {
-    //     for (let i = 0; i < Array.length; i++) {
-    //         if (Array[i].size > SizeThresh && Array[i].weight > WeightThresh) {
-    //             // console.log(Array[i])
-    //             BadIndexes.push(i)
-    //         }
-    //     }
-    // }
-    //
-    // if (FixedThresholdMode === false) {
-    //     let SizeSum = 0;
-    //     let WeightSum = 0;
-    //     for (let i = 0; i < Array.length; i++) {
-    //         SizeSum += Array[i].size;
-    //         WeightSum += Array[i].weight;
-    //     }
-    //
-    //     let SizeThreshold = SizeSum / Array.length;
-    //     let WeightThreshold = WeightSum / Array.length;
-    //
-    //     for (let i = 0; i < Array.length; i++) {
-    //         if (Array[i].size > SizeThreshold && Array[i].weight > WeightThreshold) {
-    //             BadIndexes.push(i)
-    //         }
-    //     }
-    //
-    //     console.log('ST ',SizeThreshold)
-    //     console.log('WT ',WeightThreshold)
-    // }
-
-
-
-    return BadIndexes
-}
-
-// Chromosome Selector
-function ChromosomeSelector(Array) {
-    if (Array.length === 2) {
-        return [Array[0], Array[1]]
-    }
-
-    if (Array.length < 2) {
-        return
-    }
-
-    const FirstParentIndex = Math.floor(Math.random() * Array.length)
-    let SecondParentIndex;
-    let isAllowed = false;
-
-    // Lines Below Avoid Returning Similar Indexes
-    while (!isAllowed) {
-        // console.log(Array)
-        // console.log(isAllowed)
-        SecondParentIndex = Math.floor(Math.random() * Array.length)
-        if (SecondParentIndex !== FirstParentIndex) {
-            isAllowed = true;
-        }
-    }
-
-    return [Array[FirstParentIndex], Array[SecondParentIndex]]
-}
-
-
-// Crossover , Gets The Best 2 Selected Chromosomes And Then Performs Crossover Between Them
+// Crossover, Gets The Best & Worst Chromosome And Creates 2 Children With Them Using Crossover
 function Crossover (SampleIndex1, SampleIndex2) {
-    // console.log('----------------------')
-    // console.log(JSON.stringify(Samples[SampleIndex1]))
-    // console.log(JSON.stringify(Samples[SampleIndex2]))
-    // console.log('----------------------')
 
-    // console.log(SampleIndex1 , ' ' , SampleIndex2)
-
+    // Randomly Select A Number Between 0 - 28 , Which The Chromosome Gets Mixed From This Index
     const CrossOverIndex = Math.floor(Math.random() * (((Samples[SampleIndex1].length - 1)- 1 )+1) + 1); // Generates Index Between 1 and 28, So The Last and First Index Don't Get Picked
-    const Array1_1 = Samples[SampleIndex1].slice(0, CrossOverIndex); // First Segment Of First Array
-    const Array1_2 = Samples[SampleIndex1].slice(CrossOverIndex, Samples[SampleIndex1].length); // First Segment Of First Array
-    const Array2_1 = Samples[SampleIndex2].slice(0, CrossOverIndex); // First Segment Of Second Array
-    const Array2_2 = Samples[SampleIndex2].slice(CrossOverIndex, Samples[SampleIndex2].length); // First Segment Of Second Array
 
-    // console.log(JSON.stringify(Array1_1) ,JSON.stringify(Array1_2))
-    // console.log(JSON.stringify(Array2_1) ,JSON.stringify(Array2_2))
+    // First Segment Of First Array
+    const Array1_1 = Samples[SampleIndex1].slice(0, CrossOverIndex);
 
+    // First Segment Of First Array
+    const Array1_2 = Samples[SampleIndex1].slice(CrossOverIndex, Samples[SampleIndex1].length);
+
+    // First Segment Of Second Array
+    const Array2_1 = Samples[SampleIndex2].slice(0, CrossOverIndex);
+
+    // First Segment Of Second Array
+    const Array2_2 = Samples[SampleIndex2].slice(CrossOverIndex, Samples[SampleIndex2].length);
+
+    // A Child With First Segment Of First Array And Second Segment Of Second Array
     let Child1 = Array1_1.concat(Array2_2);
+
+    // A Child With First Segment Of Second Array And First Segment Of Second Array
     let Child2 = Array2_1.concat(Array1_2);
 
+    // Generate A Random Number, If It Was Less Than Mutation Rate, It Mutates A Chromosome Index, For First Child
     if (Math.random() < MutationRate) {
         Child1 = Mutate(Child1)
     }
+    // Generate A Random Number, If It Was Less Than Mutation Rate, It Mutates A Chromosome Index, For Second Child
     if (Math.random() < MutationRate) {
         Child2 = Mutate(Child2)
     }
-    // console.log('----------------------')
-    //
-    // console.log(JSON.stringify(Child1))
-    // console.log(JSON.stringify(Child2))
-    //
-    // console.log('CrossOver Index : ',CrossOverIndex)
 
     return {Child1, Child2}
 }
 
 function Mutate (Array) {
+
+    // Generate A Random Number Between 0-28, Which Is The Index Of The Chromosome That Will Mutate
     const MutationPoint = Math.floor(Math.random() * Array.length);
+
+    // If The Index Is 0, It Changes To 1 And If It's 1 It Changes To 0
     if (Array[MutationPoint] === 0) {
         Array[MutationPoint] = 1;
     } else {
@@ -243,6 +127,7 @@ function Mutate (Array) {
     return Array;
 }
 
+// Logs The Average For All The Samples In A Generation
 function LogAverages(Array) {
         let SizeSum = 0;
         let WeightSum = 0;
@@ -259,6 +144,7 @@ function LogAverages(Array) {
 }
 
 
+// Selects The Two Worst Chromosomes In The Given Sample
 function TwoWorstSelector(Array) {
     let WorstIndexes = [];
 
@@ -268,12 +154,7 @@ function TwoWorstSelector(Array) {
     let SmallWeightDifference = [];
     let AVGDiff = [];
 
-    // for (let i = 0; i < Array.length; i++) {
-    //     if (Array[i].size <= MaxSize && Array[i].weight <= MaxWeight && !(ForbidIndexes.includes(i))) {
-    //         ForbidIndexes.push(i)
-    //     }
-    // }
-
+    // Calculates The Weight & Size Difference For Each Chromosome
     for (let i = 0; i < Array.length; i++) {
         if ((Array[i].weight - MaxWeight) >= 0) {
             WeightDifferenceArray.push(Array[i].weight - MaxWeight)
@@ -287,32 +168,30 @@ function TwoWorstSelector(Array) {
             SizeDifferenceArray.push((Array[i].size - MaxSize) * -1)
         }
 
-        // WeightDifferenceArray.push(Array[i].weight - MaxWeight)
-        // SizeDifferenceArray.push(Array[i].size - MaxSize)
     }
+
+    // Saves A Static Copy Of The Given Differences
     let WDA = JSON.parse(JSON.stringify(WeightDifferenceArray))
     let SDA = JSON.parse(JSON.stringify(SizeDifferenceArray))
 
-
+    // Sorts The Differences Biggest To Smallest And Picks The Biggest One
     let BiggestWeightDiff = WDA.sort(function (a, b) {  return b - a;  })[0];
     let BiggestSizeDiff = SDA.sort(function (a, b) {  return b - a;  })[0];
 
+    // Divides All Differences By The Biggest To Convert Them To Values Between 0 and 1
     for (let i = 0; i < Array.length; i++) {
         SmallSizeDifference.push(parseFloat((WeightDifferenceArray[i] / BiggestWeightDiff).toFixed(2)))
         SmallWeightDifference.push(parseFloat((SizeDifferenceArray[i] / BiggestSizeDiff).toFixed(2)))
     }
 
+    // Calculates And AVG Of Both Size And Weight Differences To Sort Them Evenly
     for (let i = 0; i < Array.length; i++) {
         AVGDiff.push(parseFloat(((SmallSizeDifference[i] + SmallWeightDifference[i]) / 2).toFixed(2)))
     }
 
-    // console.log(SmallWeightDifference)
-    // console.log(SmallSizeDifference)
-
-
+    // Select The 2 Chromosomes With The Max Difference (The Worst Ones)
     let Max1 = -1;
     let Max2 = -1;
-
     for (let i = 0; i < AVGDiff.length; i++) {
         if (AVGDiff[i] > Max1 && !(ForbidIndexes.includes(i))) {
             Max1 = AVGDiff[i]
@@ -323,13 +202,10 @@ function TwoWorstSelector(Array) {
         }
     }
 
-    // console.log(AVGDiff)
-    //
-    // console.log(WorstIndexes)
-
     return WorstIndexes
 }
 
+// Selects The Two Best Chromosomes In The Given Sample
 function TwoBestSelector(Array) {
     let BestIndexes = [];
     let WeightDifferenceArray = [];
@@ -337,33 +213,48 @@ function TwoBestSelector(Array) {
     let SmallSizeDifference = [];
     let SmallWeightDifference = [];
     let AVGDiff = [];
+
+
+    // Calculates The Weight & Size Difference For Each Chromosome
     for (let i = 0; i < Array.length; i++) {
-        WeightDifferenceArray.push(Array[i].weight - MaxWeight)
-        SizeDifferenceArray.push(Array[i].size - MaxSize)
+        if ((Array[i].weight - MaxWeight) >= 0) {
+            WeightDifferenceArray.push(Array[i].weight - MaxWeight)
+        } else {
+            WeightDifferenceArray.push((Array[i].weight - MaxWeight) * -1)
+        }
+
+        if ((Array[i].size - MaxSize) >= 0) {
+            SizeDifferenceArray.push(Array[i].size - MaxSize)
+        } else {
+            SizeDifferenceArray.push((Array[i].size - MaxSize) * -1)
+        }
+
     }
+
+
+    // Saves A Static Copy Of The Given Differences
     let WDA = JSON.parse(JSON.stringify(WeightDifferenceArray))
     let SDA = JSON.parse(JSON.stringify(SizeDifferenceArray))
 
+    // Sorts The Differences Biggest To Smallest And Picks The Biggest One
     let BiggestWeightDiff = WDA.sort(function (a, b) {  return b - a;  })[0];
     let BiggestSizeDiff = SDA.sort(function (a, b) {  return b - a;  })[0];
 
+    // Divides All Differences By The Biggest To Convert Them To Values Between 0 and 1
     for (let i = 0; i < Array.length; i++) {
         SmallSizeDifference.push(parseFloat((WeightDifferenceArray[i] / BiggestWeightDiff).toFixed(2)))
         SmallWeightDifference.push(parseFloat((SizeDifferenceArray[i] / BiggestSizeDiff).toFixed(2)))
     }
 
+    // Calculates And AVG Of Both Size And Weight Differences To Sort Them Evenly
     for (let i = 0; i < Array.length; i++) {
         AVGDiff.push(parseFloat(((SmallSizeDifference[i] + SmallWeightDifference[i]) / 2).toFixed(2)))
     }
 
-    // console.log(SmallWeightDifference)
-    // console.log(SmallSizeDifference)
-    // console.log(AVGDiff)
 
-
+    // Select The 2 Chromosomes With The Least Difference (The Best Ones)
     let Min1 = Infinity;
     let Min2 = Infinity;
-
     for (let i = 0; i < AVGDiff.length; i++) {
         if (AVGDiff[i] < Min1) {
             Min1 = AVGDiff[i]
@@ -373,40 +264,37 @@ function TwoBestSelector(Array) {
             BestIndexes[1] = i;
         }
     }
-4
+
     return BestIndexes
 }
 
 // Main Function To Run The Program
 async function main() {
     await loadJson() // Load CSV Data Into Project
-    createPopulation(); // Create A List Called Samples, Each List Index Contains A List Of Selections Of Items
+    createPopulation(); // Create A List Called Samples; Each List Index Contains A List Of Selections Of Items
     SampleEval() // Evaluate The Samples Array And Their Values
     for (let i = 0 ; i < NumberOfGenerations; i++) {
         SampleEval() // Evaluate The Samples Array And Their Values
         console.log('Generation : ' ,i + 1)
-        LogAverages(FullDetailEval)
-        const TwoBest = TwoBestSelector(FullDetailEval);
-        const TwoWorst = TwoWorstSelector(FullDetailEval);
-        const SelectedChromosomes = [TwoBest[0], TwoWorst[0]]
+        LogAverages(FullDetailEval) // Logs The Average For All The Samples In A Generation
+        const TwoBest = TwoBestSelector(FullDetailEval); // Selects The Two Best Chromosome In Each Generation
+        const TwoWorst = TwoWorstSelector(FullDetailEval); // Selects The Two Worst Chromosomes In Each Generation
+        const SelectedChromosomes = [TwoBest[0], TwoWorst[0]] // Selects Two Chromosomes, One From Best and One From Worst
         if (SelectedChromosomes) {
             if (SelectedChromosomes.length >= 2) {
+                // Makes 2 Children From The Selected Chromosomes And Replaces Them With Two Worst Options
                 Samples[TwoWorst[0]] = Crossover(SelectedChromosomes[0], SelectedChromosomes[1]).Child1
                 Samples[TwoWorst[1]] = Crossover(SelectedChromosomes[0], SelectedChromosomes[1]).Child2
             }
         }
         // await sleep(300)
     }
-    // console.log(FullDetailEval)
-    //
-    // console.log(SampleEvaluation)
 
 
+    // Creates An Array Of Acceptable Answers
     const AnswersArray = [];
     for (let i = 0; i < SampleEvaluation.length; i++) {
         if (SampleEvaluation[i] > 0) {
-            // console.log(FullDetailEval[i])
-            // console.log(Samples[i])
             AnswersArray.push(FullDetailEval[i])
         } else {
             const tempData = FullDetailEval[i];
@@ -415,9 +303,9 @@ async function main() {
         }
     }
 
+    // Finds The Best Answer Among Selected Answers
     let Max = -1;
     let MaxIndex = 0;
-
     for (let i = 0; i < AnswersArray.length; i++) {
         if (AnswersArray[i].value > Max && AnswersArray[i].size <= MaxSize && AnswersArray[i].weight <= MaxWeight) {
             Max = AnswersArray[i].value
@@ -425,6 +313,7 @@ async function main() {
         }
     }
 
+    // Finds The Products That Are Selected For The Best Chromosome
     const selectedProducts = [];
     for (let i = 0; i < Samples[MaxIndex].length; i++) {
         if (Samples[MaxIndex][i] === 1) {
@@ -432,7 +321,7 @@ async function main() {
         }
     }
 
-
+    // Logs The Final Answer To The Question
     console.log (' The best chromosome is : ' , Samples[MaxIndex]);
     console.log(' List of selected products : ', selectedProducts)
     console.log('You can see the evaluation here : ', AnswersArray[MaxIndex]);

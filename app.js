@@ -9,14 +9,14 @@ const MaxSize = 2;
 let Items = [];
 const NumberOfGenerations = 300;
 const NumberOfSamples = 200;
-const SizeThresh = 6
-const WeightThresh = 660
-const FixedThresholdMode = false;
-const MutationRate = 0.2;
+const MutationRate = 0.8;
 let SampleEvaluation = [];
 let FullDetailEval = [];
 const Samples = [];
 let ForbidIndexes = [];
+
+// Get Random Integer For A Certain Range
+const getRangedRandomInt = (min,max) => Math.floor(Math.random() * (max - min + 1) + min)
 
 // Generate Random Array For All The Items In The Vault
 const getRandomInt = max => Math.floor(Math.random() * max);
@@ -268,18 +268,41 @@ function TwoBestSelector(Array) {
     return BestIndexes
 }
 
+function TournamentSelection(Array) {
+        const NumberOfRandoms = getRangedRandomInt(1, NumberOfSamples)
+        const ListOfSelection = [];
+        const ListOfSelectionIndex = [];
+        for (let i = 0; i < NumberOfRandoms; i++) {
+            const RandomSampleIndex = getRandomInt(NumberOfSamples)
+            ListOfSelectionIndex.push(RandomSampleIndex);
+            ListOfSelection.push(Array[RandomSampleIndex]);
+        }
+
+        const SelectedIndex = getRangedRandomInt(0, NumberOfRandoms-1)
+
+        return ListOfSelectionIndex[SelectedIndex]
+        // const TwoBestInTournamentPopulation = TwoBestSelector(ListOfSelection)
+
+        // return ListOfSelectionIndex[TwoBestInTournamentPopulation[0]]
+
+}
+
 // Main Function To Run The Program
 async function main() {
     await loadJson() // Load CSV Data Into Project
     createPopulation(); // Create A List Called Samples; Each List Index Contains A List Of Selections Of Items
     SampleEval() // Evaluate The Samples Array And Their Values
+
     for (let i = 0 ; i < NumberOfGenerations; i++) {
         SampleEval() // Evaluate The Samples Array And Their Values
-        console.log('Generation : ' ,i + 1)
-        LogAverages(FullDetailEval) // Logs The Average For All The Samples In A Generation
+        // console.log('Generation : ' ,i + 1)
+        // LogAverages(FullDetailEval) // Logs The Average For All The Samples In A Generation
         const TwoBest = TwoBestSelector(FullDetailEval); // Selects The Two Best Chromosome In Each Generation
         const TwoWorst = TwoWorstSelector(FullDetailEval); // Selects The Two Worst Chromosomes In Each Generation
-        const SelectedChromosomes = [TwoBest[0], TwoWorst[0]] // Selects Two Chromosomes, One From Best and One From Worst
+        const TournamentSelectionParent = TournamentSelection(FullDetailEval);
+        // const SelectedChromosomes = [TwoBest[0], TwoWorst[1]] // Selects Two Chromosomes, One From Best and One From Worst
+        // const SelectedChromosomes = [TwoBest[0], TwoWorst[1]] // Selects Two Chromosomes, One From Best and One From Worst
+        const SelectedChromosomes = [TwoBest[0], TournamentSelectionParent] // Selects Two Chromosomes, One From Best and One From Worst
         if (SelectedChromosomes) {
             if (SelectedChromosomes.length >= 2) {
                 // Makes 2 Children From The Selected Chromosomes And Replaces Them With Two Worst Options
@@ -296,10 +319,6 @@ async function main() {
     for (let i = 0; i < SampleEvaluation.length; i++) {
         if (SampleEvaluation[i] > 0) {
             AnswersArray.push(FullDetailEval[i])
-        } else {
-            const tempData = FullDetailEval[i];
-            tempData.value = 0;
-            AnswersArray.push(tempData)
         }
     }
 
@@ -325,7 +344,7 @@ async function main() {
     console.log (' The best chromosome is : ' , Samples[MaxIndex]);
     console.log(' List of selected products : ', selectedProducts)
     console.log('You can see the evaluation here : ', AnswersArray[MaxIndex]);
-
+    console.log(AnswersArray)
 
 
 }

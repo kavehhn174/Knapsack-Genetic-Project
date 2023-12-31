@@ -80,7 +80,7 @@ function SampleEval() {
 function Crossover (SampleIndex1, SampleIndex2) {
 
     // Randomly Select A Number Between 0 - 28 , Which The Chromosome Gets Mixed From This Index
-    const CrossOverIndex = Math.floor(Math.random() * (((Samples[SampleIndex1].length - 1)- 1 )+1) + 1); // Generates Index Between 1 and 28, So The Last and First Index Don't Get Picked
+    const CrossOverIndex = getRangedRandomInt(0, Items.length) // Generates Index Between 1 and 28, So The Last and First Index Don't Get Picked
 
     // First Segment Of First Array
     const Array1_1 = Samples[SampleIndex1].slice(0, CrossOverIndex);
@@ -180,8 +180,8 @@ function TwoWorstSelector(Array) {
 
     // Divides All Differences By The Biggest To Convert Them To Values Between 0 and 1
     for (let i = 0; i < Array.length; i++) {
-        SmallSizeDifference.push(parseFloat((WeightDifferenceArray[i] / BiggestWeightDiff).toFixed(2)))
-        SmallWeightDifference.push(parseFloat((SizeDifferenceArray[i] / BiggestSizeDiff).toFixed(2)))
+        SmallSizeDifference.push(parseFloat((SizeDifferenceArray[i] / BiggestSizeDiff).toFixed(2)))
+        SmallWeightDifference.push(parseFloat((WeightDifferenceArray[i] / BiggestWeightDiff).toFixed(2)))
     }
 
     // Calculates And AVG Of Both Size And Weight Differences To Sort Them Evenly
@@ -193,10 +193,10 @@ function TwoWorstSelector(Array) {
     let Max1 = -1;
     let Max2 = -1;
     for (let i = 0; i < AVGDiff.length; i++) {
-        if (AVGDiff[i] > Max1 && !(ForbidIndexes.includes(i))) {
+        if (AVGDiff[i] > Max1) {
             Max1 = AVGDiff[i]
             WorstIndexes[0] = i;
-        } else if (AVGDiff[i] > Max2 && !(ForbidIndexes.includes(i))) {
+        } else if (AVGDiff[i] > Max2) {
             Max2 = AVGDiff[i];
             WorstIndexes[1] = i;
         }
@@ -242,8 +242,8 @@ function TwoBestSelector(Array) {
 
     // Divides All Differences By The Biggest To Convert Them To Values Between 0 and 1
     for (let i = 0; i < Array.length; i++) {
-        SmallSizeDifference.push(parseFloat((WeightDifferenceArray[i] / BiggestWeightDiff).toFixed(2)))
-        SmallWeightDifference.push(parseFloat((SizeDifferenceArray[i] / BiggestSizeDiff).toFixed(2)))
+        SmallSizeDifference.push(parseFloat((SizeDifferenceArray[i] / BiggestSizeDiff).toFixed(2)))
+        SmallWeightDifference.push(parseFloat((WeightDifferenceArray[i] / BiggestWeightDiff).toFixed(2)))
     }
 
     // Calculates And AVG Of Both Size And Weight Differences To Sort Them Evenly
@@ -251,18 +251,35 @@ function TwoBestSelector(Array) {
         AVGDiff.push(parseFloat(((SmallSizeDifference[i] + SmallWeightDifference[i]) / 2).toFixed(2)))
     }
 
+    let AcceptedAnswers = 0
+    for (let i = 0; i < SampleEvaluation.length; i++) {
+        if (SampleEvaluation[i] > 0) {
+            AcceptedAnswers++
+        }
+    }
 
     // Select The 2 Chromosomes With The Least Difference (The Best Ones)
-    let Min1 = Infinity;
-    let Min2 = Infinity;
+    let Min1 = 100000;
+    let Min2 = 100000;
     for (let i = 0; i < AVGDiff.length; i++) {
-        if (AVGDiff[i] < Min1) {
-            Min1 = AVGDiff[i]
-            BestIndexes[0] = i;
-        } else if (AVGDiff[i] < Min2) {
-            Min2 = AVGDiff[i];
-            BestIndexes[1] = i;
+        if (AcceptedAnswers >= 2) {
+            if (AVGDiff[i] < Min1 && SampleEvaluation[i] > 0) {
+                Min1 = AVGDiff[i]
+                BestIndexes[0] = i;
+            } else if (AVGDiff[i] < Min2 && SampleEvaluation[i] > 0) {
+                Min2 = AVGDiff[i];
+                BestIndexes[1] = i;
+            }
+        } else {
+            if (AVGDiff[i] < Min1) {
+                Min1 = AVGDiff[i]
+                BestIndexes[0] = i;
+            } else if (AVGDiff[i] < Min2) {
+                Min2 = AVGDiff[i];
+                BestIndexes[1] = i;
+            }
         }
+
     }
 
     return BestIndexes
@@ -289,25 +306,28 @@ function TournamentSelection(Array) {
 
 // Main Function To Run The Program
 async function main() {
+
     await loadJson() // Load CSV Data Into Project
     createPopulation(); // Create A List Called Samples; Each List Index Contains A List Of Selections Of Items
     SampleEval() // Evaluate The Samples Array And Their Values
 
-    for (let i = 0 ; i < NumberOfGenerations; i++) {
+    for (let i = 0; i < NumberOfGenerations; i++) {
         SampleEval() // Evaluate The Samples Array And Their Values
         // console.log('Generation : ' ,i + 1)
+        // console.log(SampleEvaluation)
         // LogAverages(FullDetailEval) // Logs The Average For All The Samples In A Generation
         const TwoBest = TwoBestSelector(FullDetailEval); // Selects The Two Best Chromosome In Each Generation
         const TwoWorst = TwoWorstSelector(FullDetailEval); // Selects The Two Worst Chromosomes In Each Generation
         const TournamentSelectionParent = TournamentSelection(FullDetailEval);
-        // const SelectedChromosomes = [TwoBest[0], TwoWorst[1]] // Selects Two Chromosomes, One From Best and One From Worst
+        const TournamentSelectionChild = TournamentSelection(FullDetailEval);
         // const SelectedChromosomes = [TwoBest[0], TwoWorst[1]] // Selects Two Chromosomes, One From Best and One From Worst
         const SelectedChromosomes = [TwoBest[0], TournamentSelectionParent] // Selects Two Chromosomes, One From Best and One From Worst
         if (SelectedChromosomes) {
             if (SelectedChromosomes.length >= 2) {
                 // Makes 2 Children From The Selected Chromosomes And Replaces Them With Two Worst Options
                 Samples[TwoWorst[0]] = Crossover(SelectedChromosomes[0], SelectedChromosomes[1]).Child1
-                Samples[TwoWorst[1]] = Crossover(SelectedChromosomes[0], SelectedChromosomes[1]).Child2
+                // Samples[TwoWorst[1]] = Crossover(SelectedChromosomes[0], SelectedChromosomes[1]).Child2
+                Samples[TournamentSelectionChild] = Crossover(SelectedChromosomes[0], SelectedChromosomes[1]).Child2
             }
         }
         // await sleep(300)
@@ -341,12 +361,13 @@ async function main() {
     }
 
     // Logs The Final Answer To The Question
-    console.log (' The best chromosome is : ' , Samples[MaxIndex]);
+    console.log(' The best chromosome is : ', Samples[MaxIndex]);
     console.log(' List of selected products : ', selectedProducts)
     console.log('You can see the evaluation here : ', AnswersArray[MaxIndex]);
     console.log(AnswersArray)
+    console.log(`We Got ${AnswersArray.length} Correct Answers`)
 
 
 }
 
-main();
+main()
